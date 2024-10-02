@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AR Brand Mascot Quest</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- A-Frame Library -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <!-- AR.js Library -->
+    <script src="https://cdn.rawgit.com/AR-js-org/AR.js/3.3.2/aframe/build/aframe-ar.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+        }
+        #overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px 25px;
+            border-radius: 8px;
+        }
+        #overlay h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            text-align: center;
+        }
+        #overlay p {
+            margin: 5px 0;
+            font-size: 18px;
+            text-align: center;
+        }
+        #leaderboard-btn {
+            padding: 8px 16px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+            background-color: #28a745;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+        }
+        #leaderboard-btn:hover {
+            background-color: #218838;
+        }
+        #leaderboard {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 8px;
+            max-width: 250px;
+            display: none;
+        }
+        #leaderboard h2 {
+            margin: 0 0 10px 0;
+            font-size: 20px;
+            text-align: center;
+        }
+        #leaderboard ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #leaderboard li {
+            padding: 5px 0;
+            border-bottom: 1px solid #555;
+            font-size: 16px;
+        }
+        #leaderboard li:last-child {
+            border-bottom: none;
+        }
+        /* Modal Styles */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 20; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.8); 
+        }
+        .modal-content {
+            background-color: #333;
+            margin: 10% auto; 
+            padding: 20px;
+            border: 1px solid #444;
+            width: 80%; 
+            max-width: 400px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: #fff;
+        }
+        .modal-content h2 {
+            margin-top: 0;
+        }
+        .modal-content p {
+            font-size: 16px;
+            margin: 15px 0;
+        }
+        .modal-content input {
+            padding: 8px;
+            width: 80%;
+            font-size: 16px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 5px;
+        }
+        .modal-content button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: #fff;
+        }
+        .modal-content button:hover {
+            background-color: #0069d9;
+        }
+    </style>
+</head>
+<body>
+    <!-- Overlay with User Info -->
+    <div id="overlay">
+        <h1>AR Brand Mascot Quest</h1>
+        <p>Points: <span id="points">0</span></p>
+        <button id="leaderboard-btn">Leaderboard</button>
+    </div>
+
+    <!-- Leaderboard -->
+    <div id="leaderboard">
+        <h2>Leaderboard</h2>
+        <ul id="leaderboard-list">
+            <!-- Leaderboard entries will be injected here -->
+        </ul>
+    </div>
+
+    <!-- Modal for Challenges -->
+    <div id="challenge-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Trivia Challenge</h2>
+            <p>What is the capital of France?</p>
+            <input type="text" id="trivia-answer" placeholder="Your Answer" />
+            <button id="submit-answer">Submit</button>
+        </div>
+    </div>
+
+    <!-- A-Frame Scene -->
+    <a-scene 
+        embedded 
+        arjs="sourceType: webcam; debugUIEnabled: false;" 
+        vr-mode-ui="enabled: false">
+        <!-- Marker Definition -->
+        <a-marker preset="hiro">
+            <!-- Brand Mascot (Using A-Frame Image) -->
+            <a-image 
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1024px-React-icon.svg.png" 
+                position="0 0.5 0" 
+                rotation="-90 0 0" 
+                width="1" 
+                height="1"
+                cursor-listener>
+            </a-image>
+        </a-marker>
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+        // Points Tracking
+        let points = 0;
+        const pointsElement = document.getElementById('points');
+
+        // Leaderboard Data (Stored in localStorage)
+        function getLeaderboard() {
+            const leaderboard = JSON.parse(localStorage.getItem('leaderboard')) || [];
+            return leaderboard;
+        }
+
+        function updateLeaderboard(username, pts) {
+            let leaderboard = getLeaderboard();
+            leaderboard.push({ username, points: pts });
+            // Sort descending
+            leaderboard.sort((a, b) => b.points - a.points);
+            // Keep top 10
+            leaderboard = leaderboard.slice(0, 10);
+            localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
+        }
+
+        function displayLeaderboard() {
+            const leaderboard = getLeaderboard();
+            const list = document.getElementById('leaderboard-list');
+            list.innerHTML = '';
+            if (leaderboard.length === 0) {
+                list.innerHTML = '<li>No entries yet.</li>';
+                return;
+            }
+            leaderboard.forEach(entry => {
+                const li = document.createElement('li');
+                li.textContent = `${entry.username}: ${entry.points} pts`;
+                list.appendChild(li);
+            });
+        }
+
+        // Handle Leaderboard Button
+        const leaderboardBtn = document.getElementById('leaderboard-btn');
+        const leaderboardDiv = document.getElementById('leaderboard');
+        leaderboardBtn.addEventListener('click', () => {
+            displayLeaderboard();
+            leaderboardDiv.style.display = 'block';
+        });
+
+        // Close Leaderboard when clicking outside
+        window.addEventListener('click', (event) => {
+            if (event.target == leaderboardDiv) {
+                leaderboardDiv.style.display = 'none';
+            }
+        });
+
+        // Handle Mascot Click using A-Frame Cursor Listener
+        AFRAME.registerComponent('cursor-listener', {
+            init: function () {
+                this.el.addEventListener('click', () => {
+                    openModal('Trivia Challenge', 'What is the capital of France?');
+                });
+            }
+        });
+
+        // Handle Modal
+        const challengeModal = document.getElementById('challenge-modal');
+        const closeButton = document.querySelector('.close-button');
+        closeButton.addEventListener('click', () => {
+            challengeModal.style.display = 'none';
+        });
+
+        function openModal(title, description) {
+            challengeModal.style.display = 'block';
+            challengeModal.querySelector('h2').innerText = title;
+            challengeModal.querySelector('p').innerText = description;
+        }
+
+        // Handle Challenge Submission
+        const submitAnswerBtn = document.getElementById('submit-answer');
+        submitAnswerBtn.addEventListener('click', () => {
+            const answer = document.getElementById('trivia-answer').value.trim().toLowerCase();
+            // Example Answer: "paris"
+            if (answer === 'paris') {
+                alert('Correct! You earned 100 points.');
+                points += 100;
+                pointsElement.textContent = points;
+                // Prompt for username
+                let username = localStorage.getItem('username');
+                if (!username) {
+                    username = prompt("Enter your username for the leaderboard:", "Player");
+                    if (username === null || username.trim() === "") {
+                        username = "Anonymous";
+                    }
+                    localStorage.setItem('username', username);
+                }
+                updateLeaderboard(username, points);
+            } else {
+                alert('Incorrect. Try again!');
+            }
+            // Reset and close modal
+            document.getElementById('trivia-answer').value = '';
+            challengeModal.style.display = 'none';
+        });
+
+        // Initialize Points from localStorage
+        function initializePoints() {
+            const storedPoints = parseInt(localStorage.getItem('points')) || 0;
+            points = storedPoints;
+            pointsElement.textContent = points;
+        }
+
+        // Save Points to localStorage on unload
+        window.addEventListener('beforeunload', () => {
+            localStorage.setItem('points', points);
+        });
+
+        // Initialize on Load
+        window.onload = initializePoints;
+    </script>
+</body>
+</html>
